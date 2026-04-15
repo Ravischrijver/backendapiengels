@@ -1,0 +1,65 @@
+import express from "express";
+import fetch from "node-fetch";
+import cors from "cors";
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+let currentImage = null;
+
+// -----------------------------
+// API: Render (zoek afbeelding)
+// -----------------------------
+app.post("/api/render", async (req, res) => {
+    const text = req.body.text;
+
+    if (!text) {
+        return res.status(400).json({ error: "No text provided" });
+    }
+
+    try {
+        const bingRes = await fetch(
+            `https://api.bing.microsoft.com/v7.0/images/search?q=${encodeURIComponent(text)}`,
+            {
+                headers: {
+                    "Ocp-Apim-Subscription-Key": process.env.BING_KEY
+                }
+            }
+        );
+
+        const data = await bingRes.json();
+        const imageUrl = data.value?.[0]?.contentUrl || null;
+
+        res.json({ image: imageUrl });
+
+    } catch (err) {
+        console.error("Error fetching image:", err);
+        res.json({ image: null });
+    }
+});
+
+// -----------------------------
+// API: Host ontvangt afbeelding
+// -----------------------------
+app.post("/host/display", (req, res) => {
+    currentImage = req.body.image || null;
+    res.json({ ok: true });
+});
+
+// -----------------------------
+// API: Host vraagt huidige afbeelding op
+// -----------------------------
+app.get("/host/current", (req, res) => {
+    res.json({ image: currentImage });
+});
+
+// -----------------------------
+app.get("/", (req, res) => {
+    res.send("Backend is running");
+});
+
+// -----------------------------
+app.listen(3000, () => {
+    console.log("Backend running on port 3000");
+});
